@@ -17,6 +17,8 @@ for id in $(aws ec2 describe-instances --query "Reservations[*].Instances[*].[In
 do
   aws ec2 terminate-instances --instance-ids $id;
 done
+rm -f ip_address.txt
+sleep 5
 
 # cleanup key pair and security groups
 rm -f gl-test.pem
