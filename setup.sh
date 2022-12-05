@@ -63,11 +63,14 @@ create_table () {
 }
 
 create_lambda () {
+    lambda_execution_policy_arn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
     dynamodb_policy_arn="arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
     kinesis_policy_arn="arn:aws:iam::aws:policy/AmazonKinesisFullAccess"
     sns_policy_arn="arn:aws:iam::aws:policy/AmazonSNSFullAccess"
     aws iam create-role --role-name stockprice-lambda-role \
         --assume-role-policy-document file://lambda_policy.json --output text
+    aws iam attach-role-policy --role-name stockprice-lambda-role \
+        --policy-arn $lambda_execution_policy_arn
     aws iam attach-role-policy --role-name stockprice-lambda-role \
         --policy-arn $dynamodb_policy_arn
     aws iam attach-role-policy --role-name stockprice-lambda-role \
@@ -78,17 +81,18 @@ create_lambda () {
         --query "Role.Arn" --output text)
     sleep 5
 
+    zip stock_poi_alerter.zip stock_poi_alerter.py
     aws lambda create-function \
-        --function-name stock-poi-alerter \
+        --function-name stock_poi_alerter \
         --runtime python3.8 \
-        --zip-file fileb://stock-poi-alerter.zip \
-        --handler stock-poi-alerter.lambda_handler \
+        --zip-file fileb://stock_poi_alerter.zip \
+        --handler stock_poi_alerter.lambda_handler \
         --role $role_arn
 
     sleep 5
     stream_arn=$(aws kinesis describe-stream --stream-name gl-stock-price \
         --query "StreamDescription.StreamARN" --output text)
-    aws lambda create-event-source-mapping --function-name stock-poi-alerter \
+    aws lambda create-event-source-mapping --function-name stock_poi_alerter \
         --batch-size 500 --starting-position LATEST \
         --event-source-arn $stream_arn
 }
