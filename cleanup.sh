@@ -42,7 +42,7 @@ aws sns unsubscribe --subscription-arn $subs_arn
 aws sns delete-topic --topic-arn $topic_arn
 
 # Cleanup Lambda Function
-$uuid=$(aws lambda list-event-source-mappings --query "EventSourceMappings[*].UUID" --output text)
+uuid=$(aws lambda list-event-source-mappings --query "EventSourceMappings[*].UUID" --output text)
 aws lambda delete-event-source-mapping --uuid $uuid
 aws lambda delete-function --function-name stock_poi_alerter
 
