@@ -36,7 +36,8 @@ prepare_instance () {
     ssh -i gl-test.pem -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null ec2-user@$ip_address "sudo yum install python3 -y"
     ssh -i gl-test.pem -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null ec2-user@$ip_address "sudo pip3 install --upgrade pip"
     ssh -i gl-test.pem -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null ec2-user@$ip_address "sudo pip3 install yfinance boto3"
-    scp -i gl-test.pem -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null stock_price_ingestion.py ec2-user@$ip_address:.
+    scp -i gl-test.pem -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null *.py ec2-user@$ip_address:.
+    ssh -i gl-test.pem -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null ec2-user@$ip_address "aws configure --profile default"
 }
 
 create_datastream () {
@@ -52,6 +53,54 @@ prepare_datastream () {
     aws iam attach-role-policy --role-name stockprice-kinesis-role --policy-arn $dynamodb_policy_arn
 }
 
+create_table () {
+    aws dynamodb create-table --table-name stock-price-poi-alert \
+        --attribute-definitions AttributeName=stockid,AttributeType=S \
+            AttributeName=timestamp,AttributeType=S \
+        --key-schema AttributeName=stockid,KeyType=HASH \
+            AttributeName=timestamp,KeyType=RANGE \
+        --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+}
+
+create_lambda () {
+    dynamodb_policy_arn="arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+    kinesis_policy_arn="arn:aws:iam::aws:policy/AmazonKinesisFullAccess"
+    sns_policy_arn="arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+    aws iam create-role --role-name stockprice-lambda-role \
+        --assume-role-policy-document file://lambda_policy.json --output text
+    aws iam attach-role-policy --role-name stockprice-lambda-role \
+        --policy-arn $dynamodb_policy_arn
+    aws iam attach-role-policy --role-name stockprice-lambda-role \
+        --policy-arn $kinesis_policy_arn
+    aws iam attach-role-policy --role-name stockprice-lambda-role \
+        --policy-arn $sns_policy_arn
+    role_arn=$(aws iam get-role --role-name "stockprice-lambda-role" \
+        --query "Role.Arn" --output text)
+    sleep 5
+
+    aws lambda create-function \
+        --function-name stock-poi-alerter \
+        --runtime python3.8 \
+        --zip-file fileb://stock-poi-alerter.zip \
+        --handler stock-poi-alerter.lambda_handler \
+        --role $role_arn
+
+    sleep 5
+    stream_arn=$(aws kinesis describe-stream --stream-name gl-stock-price \
+        --query "StreamDescription.StreamARN" --output text)
+    aws lambda create-event-source-mapping --function-name stock-poi-alerter \
+        --batch-size 500 --starting-position LATEST \
+        --event-source-arn $stream_arn
+}
+
+create_sns () {
+topic_arn=$(aws sns create-topic --name stockprice-alert \
+        --query "TopicArn" --output text)
+aws sns subscribe --topic-arn $topic_arn --protocol email \
+        --notification-endpoint sk.sanjiv@gmail.com
+echo "A notification has been sent to $subscription_email. Please confirm subscription before resuming."
+}
+
 echo "Creating key pair gl-test"
 create_key_pair
 sleep 5
@@ -62,6 +111,12 @@ create_datastream
 sleep 5
 echo "Preparing kinesis datastream"
 prepare_datastream
+echo "Creating dynamodb table"
+create_table
+echo "Creating lambda function"
+create_lambda
+echo "Creating SNS topic and subscription"
+create_sns
 echo "Creating ec2 instance"
 create_ec2_instance
 sleep 30
