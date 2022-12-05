@@ -30,7 +30,7 @@ def get_hourly_stock_data(stockid, high, low):
         _data = data.loc[timestamp]
         hourly_data['stockid'] = stockid
         hourly_data['price'] = _data['Close']
-        hourly_data['price timestamp'] = datetime.strftime(timestamp, "%Y-%m-%d %H:%M:%S")
+        hourly_data['timestamp'] = datetime.strftime(timestamp, "%Y-%m-%d %H:%M:%S")
         hourly_data['52WeekHigh'] = high
         hourly_data['52WeekLow'] = low
         hourly_stock_data.append(hourly_data)
@@ -47,10 +47,10 @@ for ticker in TICKERS:
 
 print('\n----------------------- Stock Data --------------------')
 print('STOCK:\tTIMESTAMP\t\tSTOCK PRICE\t52WEEKHIGH\t52WEEKLOW')
-sorted_stock_data = sorted(stock_data, key=lambda d: d['price timestamp']) 
+sorted_stock_data = sorted(stock_data, key=lambda d: d['timestamp']) 
 
 for data in sorted_stock_data:
-    print(f'{data["stockid"]}\t{data["price timestamp"]}\t{data["price"]}\t{data["52WeekHigh"]}\t{data["52WeekLow"]}')
+    print(f'{data["stockid"]}\t{data["timestamp"]}\t{data["price"]}\t{data["52WeekHigh"]}\t{data["52WeekLow"]}')
 
 
 ## Add your code here to push data records to Kinesis stream.
