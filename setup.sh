@@ -95,6 +95,10 @@ create_lambda () {
     aws lambda create-event-source-mapping --function-name stock_poi_alerter \
         --batch-size 500 --starting-position LATEST \
         --event-source-arn $stream_arn
+    
+    sleep 5
+    uuid=$(aws lambda list-event-source-mappings --query "EventSourceMappings[0].UUID" --output text)
+    aws lambda update-event-source-mapping --uuid $uuid --enabled
 }
 
 create_sns () {
