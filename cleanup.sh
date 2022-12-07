@@ -45,6 +45,7 @@ aws sns delete-topic --topic-arn $topic_arn
 uuid=$(aws lambda list-event-source-mappings --query "EventSourceMappings[*].UUID" --output text)
 aws lambda delete-event-source-mapping --uuid $uuid
 aws lambda delete-function --function-name stock_poi_alerter
+rm -f stock_poi_alerter.zip
 
 # cleanup key pair and security groups
 rm -f gl-test.pem
