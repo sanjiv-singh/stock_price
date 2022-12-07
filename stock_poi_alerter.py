@@ -1,6 +1,7 @@
 import boto3
 import json
 import base64
+import os
 from boto3.dynamodb.conditions import Key
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -8,7 +9,9 @@ from decimal import Decimal
 dynamodb = boto3.resource('dynamodb')
 db_table = dynamodb.Table('stock-price-poi-alert')
 sns_client = boto3.client('sns')
-sns_topic_arn = "arn:aws:sns:us-east-1:279353633617:stockprice-alert"
+sns_topic_arn = os.environ["sns_topic_arn"]
+high_percent = float(os.environ["high_percent"])
+low_percent = float(os.environ["low_percent"])
 
 def send_sns_notification(data):
     body = "\n".join([f'{k}:\t{v}' for k,v in data.items()])
@@ -55,9 +58,9 @@ def lambda_handler(event, context):
         data = json.loads(data_str)
         high = float(data["52WeekHigh"])
         low = float(data["52WeekLow"])
-        if float(data["price"]) >= 0.85 * high:
+        if float(data["price"]) >= high_percent * high:
             handle_poi(data)
-        if float(data["price"]) < 1.2 * low:
+        if float(data["price"]) <= low_percent * low:
             handle_poi(data)
 
     return {'status': 200}

@@ -85,6 +85,7 @@ create_lambda () {
     aws lambda create-function \
         --function-name stock_poi_alerter \
         --runtime python3.8 \
+        --environment "Variables={sns_topic_arn=arn:aws:sns:us-east-1:279353633617:stockprice-alert,high_percent=0.85,low_percent=1.20}" \
         --zip-file fileb://stock_poi_alerter.zip \
         --handler stock_poi_alerter.lambda_handler \
         --role $role_arn
